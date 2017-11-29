@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
-import cPickle
 from collections import defaultdict
 import re
-
+import pickle
 from bs4 import BeautifulSoup
-
+from gensim.models import word2vec
 import sys
 import os
 
@@ -17,12 +16,12 @@ from keras.utils.np_utils import to_categorical
 
 from keras.layers import Embedding
 from keras.layers import Dense, Input, Flatten
-from keras.layers import Conv1D, MaxPooling1D, Embedding, Merge, Dropout, LSTM, GRU, Bidirectional
+from keras.layers import Conv1D, MaxPooling1D, Embedding, Merge, Dropout, LSTM, GRU, Bidirectional,TimeDistributed
 from keras.models import Model
 
 from keras import backend as K
 from keras.engine.topology import Layer, InputSpec
-from keras import initializations
+
 
 
 EMBEDDING_DIM = 50
@@ -42,21 +41,23 @@ label: 0 or 1  for loss or stay !
 '''
 
 
-MAX_SESSION_LENGTH = 0   #the max length of all player single sessions
-MAX_SESSIONS = 0   #the max sessions length of all player
+MAX_SESSION_LENGTH = 150   #the max length of all player single sessions
+MAX_SESSIONS = 300   #the max sessions length of all player
 
-f = open(os.path.join(DATA_DIR, 'player_records'))
-for line in f.readlines():
-    data = json.loads(line)
-    labels.append(data['label'])
-    for session in data['sessions']:
-        if len(session) > MAX_SESSION_LENGTH:
-            MAX_SESSION_LENGTH = len(session)
-        activities += session
-    sessions.append(data['sessions'])
-    if len(data['sessions']) > MAX_SESSIONS:
-        MAX_SESSIONS = len(data['sessions'])
+f = open(os.path.join(DATA_DIR, 'record'),'rb')
+player_record = pickle.load(f)
 f.close()
+
+for user_id in player_record:
+    labels.append(player_record[user_id]['label'])
+    #for session in player_record[user_id]['sessions']:
+        #if len(session) > MAX_SESSION_LENGTH:
+         #   MAX_SESSION_LENGTH = len(session)
+        #activities += session
+    sessions.append(player_record[user_id]['sessions'])
+    #if len(data['sessions']) > MAX_SESSIONS:
+     #   MAX_SESSIONS = len(data['sessions'])
+
 
 print("the MAX_SESSION_LENGTH is %s" %MAX_SESSION_LENGTH)
 print("the MAX_SESSIONS is %s" %MAX_SESSIONS)
@@ -66,8 +67,10 @@ data = np.zeros((len(sessions), MAX_SESSIONS, MAX_SESSION_LENGTH), dtype='int32'
 
 for i, usr_sessions in enumerate(sessions):
     for j, session in enumerate(usr_sessions):
-        for k, activity in enumerate(session):
-            data[i,j,k] = activity
+        if j < MAX_SESSIONS:
+            for k, activity in enumerate(session):
+                if k < MAX_SESSION_LENGTH:
+                    data[i,j,k] = activity
 
 
 
@@ -87,19 +90,17 @@ x_val = data[-nb_validation_samples:]
 y_val = labels[-nb_validation_samples:]
 
 print('Number of positive and negative reviews in traing and validation set')
-print y_train.sum(axis=0)
-print y_val.sum(axis=0)
+print (y_train.sum(axis=0))
+print (y_val.sum(axis=0))
 
 
 
 embeddings_index = {}
-f = open(os.path.join(DATA_DIR, 'activity_embedding'))
-for line in f:
-    values = line.split()
-    activity = values[0]
-    embedding = np.asarray(values[1:], dtype='float32')
+new_model = word2vec.Word2Vec.load('../data/activity_embedding')
+for i in range(3640):
+    activity = i+1
+    embedding = new_model[str(i+1)]
     embeddings_index[activity] = embedding
-f.close()
 print('Total %s activity vectors.' % len(embeddings_index))
 
 # padding 0 ,so +1
