@@ -16,11 +16,11 @@ class Parser(object):
         sessions:[session_one,session_two,...], session_one = [activity_one,activity_two,...]
         label: 0 or 1 means loss or stay player
     '''
-    def __init__(self, sql_in="../data/kbzy.db2"):
+    def __init__(self, sql_in="../data/kbzy.db"):
         self.sql_in = sql_in
         self.regx = re.compile(r'board_layer/board.*?')
         self.total_sessions = []
-        self.embedding_size = 50
+        self.embedding_size = 25
     def sql_data_from_db(self, interval_split_threshold=10):
         '''
         sql data from db, just select the data from where currday = 1
