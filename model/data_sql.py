@@ -16,7 +16,7 @@ class Parser(object):
         sessions:[session_one,session_two,...], session_one = [activity_one,activity_two,...]
         label: 0 or 1 means loss or stay player
     '''
-    def __init__(self, sql_in="../data/kbzy.db"):
+    def __init__(self, sql_in="../data/kbzybig.db2"):
         self.sql_in = sql_in
         self.regx = re.compile(r'board_layer/board.*?')
         self.total_sessions = []

@@ -9,6 +9,7 @@ import sys
 import os
 import gc
 import h5py
+import json
 os.environ['KERAS_BACKEND']='tensorflow'
 
 from keras.preprocessing.text import Tokenizer
@@ -26,8 +27,8 @@ from keras.engine.topology import Layer, InputSpec
 
 
 EMBEDDING_DIM = 25
-VALIDATION_SPLIT = 0.1
-TRAIN_SPLIT = 0.7
+TEST_SPLIT = 0.1
+VALIDATION_SPLIT = 0.2
 DATA_DIR = "../data/"
 
 
@@ -93,13 +94,15 @@ np.random.shuffle(indices)
 data = data[indices]
 labels = labels[indices]
 nb_validation_samples = int(VALIDATION_SPLIT * data.shape[0])
-nb_train_samples = int(TRAIN_SPLIT * data.shape[0])
+nb_test_samples = int(TEST_SPLIT * data.shape[0])
 
 
 x_train = data[:-nb_validation_samples]
 y_train = labels[:-nb_validation_samples]
-x_val = data[-nb_validation_samples:]
-y_val = labels[-nb_validation_samples:]
+x_val = data[-nb_validation_samples:-nb_test_samples]
+y_val = labels[-nb_validation_samples:-nb_test_samples]
+x_test = data[-nb_test_samples:]
+y_test = data[-nb_test_samples:]
 
 print('Number of positive and negative reviews in traing and validation set')
 print (y_train.sum(axis=0))
@@ -110,7 +113,7 @@ del labels
 
 embeddings_index = {}
 new_model = word2vec.Word2Vec.load('../data/activity_embedding')
-for i in range(2322):
+for i in range(3640):
     activity = i+1
     embedding = new_model[str(i+1)]
     embeddings_index[activity] = embedding
@@ -124,16 +127,53 @@ gc.collect()
 embedding_matrix = np.random.random((len(embeddings_index) + 1, EMBEDDING_DIM))
 for activity, embedding in embeddings_index.items():
     embedding_matrix[activity] = embedding
+'''
+train_data = np.asarray([x_train, y_train])
+val_data = np.asarray([x_val, y_val])
+test_data = np.asarray([x_test, y_test])
 
-train_data = [x_train, y_train]
-test_data = [x_val, y_val]
 del x_train
 del x_val
 print(gc.collect() )
 
 with open("../data/samples","wb") as f_out:
     pickle.dump(train_data, f_out, protocol=4)
+    pickle.dump(val_data, f_out, protocol=4)
     pickle.dump(test_data, f_out, protocol=4)
+
+file = h5py.File('../data/samples','w')
+file.create_dataset('train_data', data = x_train)
+file.create_dataset('val_data', data = x_val)
+file.create_dataset('test_data',data = x_test)
+file.create_dataset('train_label', data = y_train)
+file.create_dataset('val_label', data = y_val)
+file.create_dataset('test_label', data = y_test)
+file.close()
+'''
+
+with open("../data/train_samples",'w') as file:
+    for i in range(x_train.shape[0]):
+        data = {}
+        data['data'] = x_train[i].tolist()
+        data['label'] = y_train[i].tolist()
+        data = json.dumps(data)
+        file.write(data + "\n")
+
+with open("../data/val_samples",'w') as file:
+    for i in range(x_val.shape[0]):
+        data = {}
+        data['data'] = x_val[i].tolist()
+        data['label'] = y_val[i].tolist()
+        data = json.dumps(data)
+        file.write(data + "\n")
+with open("../data/test_samples",'w') as file:
+    for i in range(x_test.shape[0]):
+        data = {}
+        data['data'] = x_test[i].tolist()
+        data['label'] = y_test[i].tolist()
+        data = json.dumps(data)
+        file.write(data + "\n")
+
 
 with open("../data/embedding_matrix", "wb") as f_out:
     pickle.dump(embedding_matrix, f_out, protocol=4)
